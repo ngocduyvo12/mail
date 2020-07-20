@@ -36,7 +36,7 @@ function load_mailbox(mailbox) {
   // Show the mailbox name
   document.querySelector('#emails-view').innerHTML = `<h3>${mailbox.charAt(0).toUpperCase() + mailbox.slice(1)}</h3>`;
 
-  //fetch sent mail 
+  //fetch mail 
   fetch(`emails/${mailbox}`)
     .then(response => response.json())
     .then(emails => {
@@ -44,21 +44,48 @@ function load_mailbox(mailbox) {
       console.log(emails);
       //print emails to front end via div id emails-view
       for (var i = 0; i < emails.length; i++) {
-        //html's body
-        var emails_content = 
-          `<div class="card-header">
-            ${emails[i].sender}
-          </div>
-          <div class="card-body">
-            <h5 class="card-title">${emails[i].subject}</h5>
-            <p class="card-text">${emails[i].body.substring(0, 100) + "..."}</p>
-            <p class="card-text">${emails[i].timestamp}</p>
-            <button type="button" class="btn btn-primary" onclick="read_email(${emails[i].id})">Read</button>
-          </div>`;
+        //card's body content template:
+        var card_body_content = `<h5 class="card-title">${emails[i].subject}</h5>
+        <p class="card-text">${emails[i].body.substring(0, 100) + "..."}</p>
+        <p class="card-text">${emails[i].timestamp}</p>
+        <button type="button" class="btn btn-primary" onclick="read_email(${emails[i].id})">Read</button>`;
+
+        //archive button template
+        var archive_button = `<button type="button" class="btn btn-primary" onclick="archive_email(${emails[i].id})">Archive</button>`;
+        //unarchive button template
+        var unarchive_button = `<button type="button" class="btn btn-primary" onclick="unarchive_email(${emails[i].id})">Unarchive</button>`;
+
+
+        //change the button based on mailbox:
+        if(mailbox == 'inbox'){
+          //html's body
+          var emails_content = 
+            `<div class="card-header">
+              ${emails[i].sender}
+            </div>
+            <div class="card-body">
+              ${card_body_content + archive_button}
+            </div>`;
+        }else if (mailbox == 'archive'){
+            var emails_content = 
+              `<div class="card-header">
+                ${emails[i].sender}
+              </div>
+              <div class="card-body">
+                ${card_body_content + unarchive_button}
+              </div>`;
+        }else if (mailbox == 'sent'){
+          var emails_content = `<div class="card-header">
+              To: ${emails[i].recipients}
+            </div>
+            <div class="card-body">
+              ${card_body_content}
+            </div>`;
+        }
 
         if(emails[i].read == true){
           $('#emails-view').append(
-            `<div class="card read" >
+            `<div class="card read">
               ${emails_content}
             </div>`
           )
@@ -105,9 +132,9 @@ function send_email(event) {
   load_mailbox('sent')
 }
 
+
 //function to retrieve a single email when a read button is pressed
 function read_email(id){
-
 
   // //console log id to test
   // console.log(id)
@@ -138,7 +165,7 @@ function read_email(id){
           </div>
           <div class="card-body">
             <p class="card-text">${email.body}</p>
-            <button type="button" class="btn btn-primary" onclick="read_email(${email.id})">Reply</button>
+            <button type="button" class="btn btn-primary" onclick="reply_email(${email.id})">Reply</button>
           </div>
         </div>`)
   })
@@ -153,4 +180,60 @@ function read_email(id){
       read: true
     })
   })
+}
+
+//function to archive an email:
+function archive_email(id){
+  //use PUT method to update the email with id = id to archive true
+  fetch(`http://127.0.0.1:8000/emails/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      archived: true
+    })
+  })
+  .then(response => load_mailbox('inbox'))
+
+}
+
+//function to unarchive an email:
+function unarchive_email(id){
+  //use PUT method to update the email with id = id to archive true
+  fetch(`http://127.0.0.1:8000/emails/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      archived: false
+    })
+  })
+  .then(response => load_mailbox('inbox'))
+}
+
+//function to reply to an email:
+function reply_email(id) {
+  // Show compose view and hide other views
+  document.querySelector('#emails-view').style.display = 'none';
+  document.querySelector('#one-email-view').style.display = 'none';
+  document.querySelector('#compose-view').style.display = 'block';
+
+  //get content from email:
+  //fetch mail 
+  fetch(`emails/${id}`)
+    .then(response => response.json())
+    .then(emails => {
+      // prefill recipients fields
+      document.querySelector('#compose-recipients').value = emails.sender;
+      //prefill subjects field. if subject does not already have Re: then add it
+      //check if subjects already have Re:
+      if(emails.subject.substring(0, 2) == 'Re:'){
+        var email_subject = emails.subject
+      }else {
+        var email_subject = 'Re: '+emails.subject
+      }
+      document.querySelector('#compose-subject').value = email_subject;
+
+      //prefill body of the email. Add time stamp
+      var email_body = `On ${emails.timestamp} ${emails.sender} wrote: ${emails.body}`
+      document.querySelector('#compose-body').value = email_body;
+    })
+
+
 }

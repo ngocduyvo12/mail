@@ -5,3 +5,7 @@ textarea {
 .read {
     background-color: lightgrey;
 }
+
+.btn {
+    margin: 2px;
+}
